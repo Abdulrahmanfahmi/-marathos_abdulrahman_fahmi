@@ -1,6 +1,3 @@
-
-
-Klistra in i dbdiagram.io för att visualisera.
 Table fct_results {
 result_id integer [primary key]
 event_id integer [ref: > dim_event.event_id]
