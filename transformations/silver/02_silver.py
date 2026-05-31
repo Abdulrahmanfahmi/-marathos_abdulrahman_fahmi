@@ -6,7 +6,6 @@ def build_silver(spark: SparkSession) -> None:
     df = get_table("marathos.bronze.ultra_marathon_raw")
     print(f"Rows in bronze: {df.count()}")
 
-    # Skapa distance_unit kolumn
     df = df.withColumn("distance_unit",
         F.when(F.col("event_distance_length").endswith("km"), "km")
          .when(F.col("event_distance_length").endswith("mi"), "mi")
@@ -14,28 +13,19 @@ def build_silver(spark: SparkSession) -> None:
          .otherwise("unknown")
     )
 
-    # Validera och ta bort ogiltiga rader
-    df = df.withColumn("is_valid",
-        F.when(
-            (F.col("distance_unit").isin("km", "mi")) &
-            (F.col("athlete_performance").endswith("h")), True
-        ).when(
-            (F.col("distance_unit") == "h") &
-            (~F.col("athlete_performance").endswith("h")), True
-        ).otherwise(False)
-    ).filter(F.col("is_valid") == True)
+    df = df.filter(
+        ((F.col("distance_unit").isin("km", "mi")) & F.col("athlete_performance").endswith("h")) |
+        ((F.col("distance_unit") == "h") & ~F.col("athlete_performance").endswith("h"))
+    )
 
-    # Extrahera performance_value
     df = df.withColumn("performance_value",
-        F.when(
-            F.col("distance_unit").isin("km", "mi"),
+        F.when(F.col("distance_unit").isin("km", "mi"),
             F.regexp_extract(F.col("athlete_performance"), r"(\d+:\d+:\d+)", 1)
         ).otherwise(
             F.regexp_extract(F.col("athlete_performance"), r"([\d\.]+)", 1)
         )
     )
 
-    # Skapa IDs
     df = add_dense_rank_id(df, "event_name", "event_id")
     df = add_dense_rank_id(df, "athlete_id", "athlete_id_new")
 

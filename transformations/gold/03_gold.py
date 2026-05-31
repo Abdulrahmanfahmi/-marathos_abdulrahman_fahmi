@@ -6,7 +6,6 @@ def build_gold(spark: SparkSession) -> None:
     df = get_table("marathos.silver.ultra_marathon_obt")
     print(f"Rows in silver: {df.count()}")
 
-    # dim_event
     dim_event = df.select(
         "event_id", "event_name", "event_dates",
         "event_distance_length", "event_number_of_finishers",
@@ -15,7 +14,6 @@ def build_gold(spark: SparkSession) -> None:
     write_delta(dim_event, "marathos.gold.dim_event")
     print(f"dim_event: {dim_event.count()} rows")
 
-    # dim_athlete
     dim_athlete = df.select(
         F.col("athlete_id_new").alias("athlete_id"),
         "athlete_country", "athlete_gender",
@@ -24,7 +22,6 @@ def build_gold(spark: SparkSession) -> None:
     write_delta(dim_athlete, "marathos.gold.dim_athlete")
     print(f"dim_athlete: {dim_athlete.count()} rows")
 
-    # fct_results
     fct_results = df.select(
         "result_id", "event_id",
         F.col("athlete_id_new").alias("athlete_id"),
@@ -34,4 +31,27 @@ def build_gold(spark: SparkSession) -> None:
     write_delta(fct_results, "marathos.gold.fct_results")
     print(f"fct_results: {fct_results.count()} rows")
 
-    print("Gold tables written successfully")
+    spark.sql("""
+        CREATE OR REPLACE VIEW marathos.gold.vw_distance_events AS
+        SELECT f.result_id, f.athlete_id, f.athlete_performance,
+               f.performance_value, f.distance_unit, f.athlete_average_speed,
+               e.event_name, e.event_distance_length, e.year_of_event,
+               a.athlete_country, a.athlete_gender, a.athlete_year_of_birth
+        FROM marathos.gold.fct_results f
+        JOIN marathos.gold.dim_event e ON f.event_id = e.event_id
+        JOIN marathos.gold.dim_athlete a ON f.athlete_id = a.athlete_id
+        WHERE f.distance_unit IN ('km', 'mi')
+    """)
+
+    spark.sql("""
+        CREATE OR REPLACE VIEW marathos.gold.vw_timed_events AS
+        SELECT f.result_id, f.athlete_id, f.athlete_performance,
+               f.performance_value, f.distance_unit, f.athlete_average_speed,
+               e.event_name, e.event_distance_length, e.year_of_event,
+               a.athlete_country, a.athlete_gender, a.athlete_year_of_birth
+        FROM marathos.gold.fct_results f
+        JOIN marathos.gold.dim_event e ON f.event_id = e.event_id
+        JOIN marathos.gold.dim_athlete a ON f.athlete_id = a.athlete_id
+        WHERE f.distance_unit = 'h'
+    """)
+    print("Gold layer complete")
