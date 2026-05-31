@@ -1,0 +1,31 @@
+
+
+Klistra in i dbdiagram.io för att visualisera.
+Table fct_results {
+result_id integer [primary key]
+event_id integer [ref: > dim_event.event_id]
+athlete_id integer [ref: > dim_athlete.athlete_id]
+performance_seconds integer
+performance_km float
+athlete_avg_speed float
+athlete_age integer
+year_of_event integer
+event_finishers integer
+athlete_age_category string
+athlete_club string
+}
+Table dim_event {
+event_id integer [primary key]
+event_name string
+event_dates string
+event_distance_raw string
+event_distance_unit string
+event_distance_value float
+}
+Table dim_athlete {
+athlete_id integer [primary key]
+athlete_id_raw integer
+athlete_country string
+athlete_gender string
+athlete_year_of_birth integer
+}
